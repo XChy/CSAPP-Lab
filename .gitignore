@@ -11,3 +11,6 @@ Datalab/ishow.c
 Datalab/README
 Datalab/tests.c
 .vscode/settings.json
+Datalab/btest
+Datalab/fshow
+Datalab/ishow
