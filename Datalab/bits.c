@@ -226,7 +226,7 @@ int conditional(int x, int y, int z)
  *   Max ops: 24
  *   Rating: 3
  */
-int isLessOrEqual(int x, int y)
+int isLessOrEqual(int x, int y) // overflow
 {
   int mask = 1 << 31;
   int minusY = ~y + 1;
@@ -245,8 +245,9 @@ int isLessOrEqual(int x, int y)
  */
 int logicalNeg(int x)
 {
-
-  return;
+  int isNegative = (x >> 31) & 1;
+  int notPositiveAndNeg = ((~x + 1) >> 31) & 1;
+  return (isNegative | notPositiveAndNeg) ^ 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -262,7 +263,21 @@ int logicalNeg(int x)
  */
 int howManyBits(int x)
 {
-  return 0;
+  int b16, b8, b4, b2, b1, b0;
+  int flag = x >> 31;
+  x = (flag & ~x) | (~flag & x);
+  b16 = !!(x >> 16) << 4;
+  x >>= b16;
+  b8 = !!(x >> 8) << 3;
+  x >>= b8;
+  b4 = !!(x >> 4) << 2;
+  x >>= b4;
+  b2 = !!(x >> 2) << 1;
+  x >>= b2;
+  b1 = !!(x >> 1);
+  x >>= b1;
+  b0 = x;
+  return b0 + b1 + b2 + b4 + b8 + b16 + 1;
 }
 // float
 /*
@@ -278,7 +293,33 @@ int howManyBits(int x)
  */
 unsigned floatScale2(unsigned uf)
 {
-  return 2;
+  unsigned flag = uf >> 31;
+  unsigned bias = (1 << 7) - 1;
+  unsigned frac = uf & 0b11111111111111111111111; // 23 bits max
+  unsigned exp = (uf >> 23) & 0b11111111;
+  if (exp == 0)
+  {
+    if (frac <= 0b1111111111111111111111) // 22 bits max
+    {
+      frac <<= 1;
+      return flag << 31 | exp << 23 | frac;
+    }
+    else
+    {
+      frac = (frac << 1) - 0b100000000000000000000000; // 24 bits
+      exp = 1;
+      return flag << 31 | exp << 23 | frac;
+    }
+  }
+  else if (exp == 0b11111111)
+  {
+
+    return uf;
+  }
+  else
+  {
+    return (((flag << 8) + exp + 1) << 23) + frac;
+  }
 }
 /*
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -294,7 +335,47 @@ unsigned floatScale2(unsigned uf)
  */
 int floatFloat2Int(unsigned uf)
 {
-  return 2;
+  unsigned flag = uf >> 31;
+  unsigned bias = (1 << 7) - 1;
+  unsigned frac = uf & 0b11111111111111111111111; // 23 bits max
+  unsigned exp = (uf >> 23) & 0b11111111;
+
+  unsigned positiveValue;
+
+  if (exp == 0)
+  {
+    return 0;
+  }
+  else if (exp == 0b11111111)
+  {
+    return 0x80000000u;
+  }
+  else
+  {
+    int E = exp - bias;
+    int M = 0b10000000000000000000000 + frac;
+    if (E >= 31)
+    {
+      return 0x80000000u;
+    }
+    else if (E == 0)
+    {
+      positiveValue = 1;
+    }
+    else if (E > 0)
+    {
+      positiveValue = M << E >> 23;
+    }
+    else
+    {
+      positiveValue = M >> -E >> 23;
+    }
+  }
+
+  if (!flag || positiveValue == 0)
+    return positiveValue;
+  else
+    return -positiveValue;
 }
 /*
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -311,5 +392,18 @@ int floatFloat2Int(unsigned uf)
  */
 unsigned floatPower2(int x)
 {
-  return 2;
+  unsigned bias = (1 << 7) - 1;
+  if (x >= 128)
+  {
+    return 0x7f800000;
+  }
+  else if (x <= -127)
+  {
+    return 0;
+  }
+  else
+  {
+    unsigned exp = x + bias;
+    return exp << 23;
+  }
 }
