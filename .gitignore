@@ -16,3 +16,16 @@ Datalab/fshow
 Datalab/ishow
 bomb/.bomb.s.swp
 target1.tar
+datalab/btest
+datalab/btest.c
+datalab/btest.h
+datalab/decl.c
+datalab/dlc
+datalab/driver.pl
+datalab/Driverhdrs.pm
+datalab/Driverlib.pm
+datalab/fshow
+datalab/fshow.c
+datalab/ishow
+datalab/ishow.c
+bomblab/bomb
