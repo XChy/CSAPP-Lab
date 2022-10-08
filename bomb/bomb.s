@@ -551,6 +551,7 @@ Disassembly of section .text:
   40116a:	48 39 f0             	cmp    %rsi,%rax # current != g
   40116d:	75 f1                	jne    401160 <phase_6+0x6c> 
 
+# fun3
   40116f:	be 00 00 00 00       	mov    $0x0,%esi # g=0
   401174:	eb 21                	jmp    401197 <phase_6+0xa3>
   
@@ -565,6 +566,7 @@ Disassembly of section .text:
   40118d:	48 83 c6 04          	add    $0x4,%rsi  # g+=4
   401191:	48 83 fe 18          	cmp    $0x18,%rsi # g==24
   401195:	74 14                	je     4011ab <phase_6+0xb7>
+
   401197:	8b 0c 34             	mov    (%rsp,%rsi,1),%ecx # cx=*(stacktop+g)
   40119a:	83 f9 01             	cmp    $0x1,%ecx
   40119d:	7e e4                	jle    401183 <phase_6+0x8f> # cx<=1

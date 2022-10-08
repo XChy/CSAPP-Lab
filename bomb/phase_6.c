@@ -34,63 +34,71 @@ void fun2(int *stacktop) // ai=7-ai;
 
 void fun3(int *stacktop)
 {
-      int current;
-      int g = 0;
-      int *dx;
-      int cx = 7;
-      int bx;
-      dx = 0x6032d0;
+      int esi = 0;
+      int ecx = 7;
+      int *edx;
+      int eax;
 
+      ecx = stacktop[esi]; // 401197
+      // 7-a1
+      if (ecx <= 1)
+      { // 401183
+            edx = 0x6032d0;
+            stacktop[esi * 2 + 32] = 0x6032d0; // stacktop[32]=0x6032d0
+            esi = 4;
+            ecx = stacktop[esi]; // ecx=7-a2
+      }
       do
       {
-            :A
-            *(stacktop + 2*g  + 20) = dx;//mov    %rdx,0x20(%rsp,%rsi,2)
-            g += 4;
+            eax = 1; // 40119f
+            edx = 0x6032d0;
 
-            if (g == 24)
+            do // 401176
             {
-                  bx = *(stacktop + 32);
-                  current = stacktop + 48;
-                  g = stacktop + 80;
-                  cx = bx;
+                  edx = *(edx + 8);
+                  eax += 1;
+            } while (ecx != eax);
+            // 401188
+            do
+            {
+                  // edx = 0x6032d0;
+                  stacktop[esi * 2 + 32] = edx; // stacktop[32]
+                  esi += 4;
+                  if (esi == 24)
+                        break;
+                  ecx = stacktop[esi];
+            } while (ecx <= 1);
+      } while (1);
 
-                  dx = *current;
-                  *(cx + 1) = dx;
-                  current += 1;
+      int ebx; // 4011ab
+      ebx = stacktop[32];
+      eax = stacktop + 40;
+      esi = stacktop + 80;
+      ecx = ebx;
+      while (1)
+      {
+            // 4011bd
+            edx = *(int *)eax;
+            *(int *)(ecx + 8) = edx;
+            eax += 8;
+            if (eax == esi)
+                  break;
+            ecx = edx;
+      }
 
-                  while (current != g)
-                  {
-                        dx = *current;
-                        *(cx + 1) = dx;
-                        current += 1;
-                        cx = dx;
-                  }
-
-                  int dp;
-
-                  *(dx + 1) = 0;
-                  dp = 5;
-
-                  do
-                  {
-                        current = *(bx + 1);
-                        if (*bx >= current)
-                              explode();
-                        bx = *(bx + 1);
-                        bp--;
-                  } while (*bx != current);
-                  return;
-            }
-
-      } while (*(stacktop + 2 * g) <= 1);
-
-      current = 1;
-      dx = 0x6032d0;
-
+      int ebp;
+      *(edx + 8) = 0;
+      ebp = 5;
+      // 4011df
+      int current;
       do
       {
-            dx = *(dx + 1);
-            current++;
-      } while (cx != current);
-      goto A;
+            eax = *(int *)(ebx + 8);
+
+            current = *(int *)ebx;//单调递减
+            if (eax < *(int *)ebx)
+                  explode();
+            ebx = *(int *)(ebx + 8);
+            ebp--;
+      } while (eax != current);
 }
