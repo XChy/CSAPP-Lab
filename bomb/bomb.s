@@ -509,64 +509,70 @@ Disassembly of section .text:
   4010f3:	c3                   	ret    
 
 00000000004010f4 <phase_6>:
-  4010f4:	41 56                	push   %r14
-  4010f6:	41 55                	push   %r13
-  4010f8:	41 54                	push   %r12
-  4010fa:	55                   	push   %rbp
-  4010fb:	53                   	push   %rbx
+  4010f4:	41 56                	push   %r14 # f
+  4010f6:	41 55                	push   %r13 # e
+  4010f8:	41 54                	push   %r12 # d
+  4010fa:	55                   	push   %rbp # c
+  4010fb:	53                   	push   %rbx # b
   4010fc:	48 83 ec 50          	sub    $0x50,%rsp
-  401100:	49 89 e5             	mov    %rsp,%r13
-  401103:	48 89 e6             	mov    %rsp,%rsi
+  401100:	49 89 e5             	mov    %rsp,%r13                      # e=stacktop
+  401103:	48 89 e6             	mov    %rsp,%rsi                      # rsi:g=stacktop
   401106:	e8 51 03 00 00       	call   40145c <read_six_numbers>
-  40110b:	49 89 e6             	mov    %rsp,%r14
-  40110e:	41 bc 00 00 00 00    	mov    $0x0,%r12d
-  401114:	4c 89 ed             	mov    %r13,%rbp
-  401117:	41 8b 45 00          	mov    0x0(%r13),%eax
-  40111b:	83 e8 01             	sub    $0x1,%eax
-  40111e:	83 f8 05             	cmp    $0x5,%eax
+  40110b:	49 89 e6             	mov    %rsp,%r14                       # f=stacktop
+  40110e:	41 bc 00 00 00 00    	mov    $0x0,%r12d                     # a=0
+  401114:	4c 89 ed             	mov    %r13,%rbp                      # c=e
+  401117:	41 8b 45 00          	mov    0x0(%r13),%eax                 # current=stack[0]
+  40111b:	83 e8 01             	sub    $0x1,%eax                      # current--
+  40111e:	83 f8 05             	cmp    $0x5,%eax                      # current <= 5
   401121:	76 05                	jbe    401128 <phase_6+0x34>
   401123:	e8 12 03 00 00       	call   40143a <explode_bomb>
-  401128:	41 83 c4 01          	add    $0x1,%r12d
-  40112c:	41 83 fc 06          	cmp    $0x6,%r12d
+  401128:	41 83 c4 01          	add    $0x1,%r12d                     # a+=1
+  40112c:	41 83 fc 06          	cmp    $0x6,%r12d                     # a==6
   401130:	74 21                	je     401153 <phase_6+0x5f>
-  401132:	44 89 e3             	mov    %r12d,%ebx
-  401135:	48 63 c3             	movslq %ebx,%rax
-  401138:	8b 04 84             	mov    (%rsp,%rax,4),%eax
-  40113b:	39 45 00             	cmp    %eax,0x0(%rbp)
+  401132:	44 89 e3             	mov    %r12d,%ebx                     # b=a
+  401135:	48 63 c3             	movslq %ebx,%rax                      # current=b=a
+  401138:	8b 04 84             	mov    (%rsp,%rax,4),%eax             # current = stack[current]
+  40113b:	39 45 00             	cmp    %eax,0x0(%rbp)                 # *c != current
   40113e:	75 05                	jne    401145 <phase_6+0x51>
   401140:	e8 f5 02 00 00       	call   40143a <explode_bomb>
-  401145:	83 c3 01             	add    $0x1,%ebx
-  401148:	83 fb 05             	cmp    $0x5,%ebx
+  401145:	83 c3 01             	add    $0x1,%ebx                      # b+=1
+  401148:	83 fb 05             	cmp    $0x5,%ebx                      # b<=5
   40114b:	7e e8                	jle    401135 <phase_6+0x41>
-  40114d:	49 83 c5 04          	add    $0x4,%r13
-  401151:	eb c1                	jmp    401114 <phase_6+0x20>
-  401153:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi
-  401158:	4c 89 f0             	mov    %r14,%rax
-  40115b:	b9 07 00 00 00       	mov    $0x7,%ecx
-  401160:	89 ca                	mov    %ecx,%edx
-  401162:	2b 10                	sub    (%rax),%edx
-  401164:	89 10                	mov    %edx,(%rax)
-  401166:	48 83 c0 04          	add    $0x4,%rax
-  40116a:	48 39 f0             	cmp    %rsi,%rax
-  40116d:	75 f1                	jne    401160 <phase_6+0x6c>
-  40116f:	be 00 00 00 00       	mov    $0x0,%esi
+  40114d:	49 83 c5 04          	add    $0x4,%r13                      # e+=1;
+  401151:	eb c1                	jmp    401114 <phase_6+0x20> 
+
+  401153:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi # g=stacktop+6
+  401158:	4c 89 f0             	mov    %r14,%rax # current=f=stacktop
+  40115b:	b9 07 00 00 00       	mov    $0x7,%ecx # cx=7
+  401160:	89 ca                	mov    %ecx,%edx # dx=cx
+  401162:	2b 10                	sub    (%rax),%edx # dx-= *current
+  401164:	89 10                	mov    %edx,(%rax) # *current = dx
+  401166:	48 83 c0 04          	add    $0x4,%rax # current += 1
+  40116a:	48 39 f0             	cmp    %rsi,%rax # current != g
+  40116d:	75 f1                	jne    401160 <phase_6+0x6c> 
+
+  40116f:	be 00 00 00 00       	mov    $0x0,%esi # g=0
   401174:	eb 21                	jmp    401197 <phase_6+0xa3>
+  
   401176:	48 8b 52 08          	mov    0x8(%rdx),%rdx
   40117a:	83 c0 01             	add    $0x1,%eax
   40117d:	39 c8                	cmp    %ecx,%eax
   40117f:	75 f5                	jne    401176 <phase_6+0x82>
   401181:	eb 05                	jmp    401188 <phase_6+0x94>
-  401183:	ba d0 32 60 00       	mov    $0x6032d0,%edx
-  401188:	48 89 54 74 20       	mov    %rdx,0x20(%rsp,%rsi,2)
-  40118d:	48 83 c6 04          	add    $0x4,%rsi
-  401191:	48 83 fe 18          	cmp    $0x18,%rsi
+
+  401183:	ba d0 32 60 00       	mov    $0x6032d0,%edx # dx
+  401188:	48 89 54 74 20       	mov    %rdx,0x20(%rsp,%rsi,2) # stack[32+2*g]=dx
+  40118d:	48 83 c6 04          	add    $0x4,%rsi  # g+=4
+  401191:	48 83 fe 18          	cmp    $0x18,%rsi # g==24
   401195:	74 14                	je     4011ab <phase_6+0xb7>
-  401197:	8b 0c 34             	mov    (%rsp,%rsi,1),%ecx
+  401197:	8b 0c 34             	mov    (%rsp,%rsi,1),%ecx # cx=*(stacktop+g)
   40119a:	83 f9 01             	cmp    $0x1,%ecx
-  40119d:	7e e4                	jle    401183 <phase_6+0x8f>
-  40119f:	b8 01 00 00 00       	mov    $0x1,%eax
-  4011a4:	ba d0 32 60 00       	mov    $0x6032d0,%edx
-  4011a9:	eb cb                	jmp    401176 <phase_6+0x82>
+  40119d:	7e e4                	jle    401183 <phase_6+0x8f> # cx<=1
+
+  40119f:	b8 01 00 00 00       	mov    $0x1,%eax # current=1
+  4011a4:	ba d0 32 60 00       	mov    $0x6032d0,%edx # dx=0x6032d0
+  4011a9:	eb cb                	jmp    401176 <phase_6+0x82> 
+
   4011ab:	48 8b 5c 24 20       	mov    0x20(%rsp),%rbx
   4011b0:	48 8d 44 24 28       	lea    0x28(%rsp),%rax
   4011b5:	48 8d 74 24 50       	lea    0x50(%rsp),%rsi
@@ -578,6 +584,7 @@ Disassembly of section .text:
   4011cb:	74 05                	je     4011d2 <phase_6+0xde>
   4011cd:	48 89 d1             	mov    %rdx,%rcx
   4011d0:	eb eb                	jmp    4011bd <phase_6+0xc9>
+
   4011d2:	48 c7 42 08 00 00 00 	movq   $0x0,0x8(%rdx)
   4011d9:	00 
   4011da:	bd 05 00 00 00       	mov    $0x5,%ebp
