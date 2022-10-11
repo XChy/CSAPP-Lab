@@ -39,3 +39,4 @@ cachelab/test-trans
 cachelab/tracegen
 cachelab/trans.o
 cachelab/xchy-handin.tar
+cachelab/.csim_results
