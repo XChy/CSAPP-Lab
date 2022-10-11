@@ -29,3 +29,13 @@ datalab/fshow.c
 datalab/ishow
 datalab/ishow.c
 bomblab/bomb
+cachelab-handout.tar
+attacklab/farm.o
+cachelab/csim
+cachelab/csim-ref
+cachelab/driver.py
+cachelab/test-csim
+cachelab/test-trans
+cachelab/tracegen
+cachelab/trans.o
+cachelab/xchy-handin.tar
