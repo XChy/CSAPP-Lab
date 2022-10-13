@@ -40,3 +40,7 @@ cachelab/tracegen
 cachelab/trans.o
 cachelab/xchy-handin.tar
 cachelab/.csim_results
+cachelab/trace.f1
+cachelab/trace.tmp
+cachelab/.marker
+cachelab/trace.f0
