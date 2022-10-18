@@ -24,29 +24,69 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
     int i, j, k, l, tmp, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
 
-    for (i = 0; i < N - 7; i += 8)
+    if (M == 32)
     {
-        for (j = 0; j < M - 7; j += 8)
+        for (i = 0; i < N - 7; i += 8)
         {
-            for (k = i; k < i + 8; k++)
+            for (j = 0; j < M - 7; j += 8)
             {
-                tmp = A[k][j + 0];
-                tmp1 = A[k][j + 1];
-                tmp2 = A[k][j + 2];
-                tmp3 = A[k][j + 3];
-                tmp4 = A[k][j + 4];
-                tmp5 = A[k][j + 5];
-                tmp6 = A[k][j + 6];
-                tmp7 = A[k][j + 7];
+                for (k = i; k < i + 8; k++)
+                {
+                    tmp = A[k][j + 0];
+                    tmp1 = A[k][j + 1];
+                    tmp2 = A[k][j + 2];
+                    tmp3 = A[k][j + 3];
+                    tmp4 = A[k][j + 4];
+                    tmp5 = A[k][j + 5];
+                    tmp6 = A[k][j + 6];
+                    tmp7 = A[k][j + 7];
 
-                B[j][k] = tmp;
-                B[j + 1][k] = tmp1;
-                B[j + 2][k] = tmp2;
-                B[j + 3][k] = tmp3;
-                B[j + 4][k] = tmp4;
-                B[j + 5][k] = tmp5;
-                B[j + 6][k] = tmp6;
-                B[j + 7][k] = tmp7;
+                    B[j][k] = tmp;
+                    B[j + 1][k] = tmp1;
+                    B[j + 2][k] = tmp2;
+                    B[j + 3][k] = tmp3;
+                    B[j + 4][k] = tmp4;
+                    B[j + 5][k] = tmp5;
+                    B[j + 6][k] = tmp6;
+                    B[j + 7][k] = tmp7;
+                }
+            }
+        }
+    }
+    else if (M == 64)
+    {
+        for (i = 0; i < N - 3; i += 4)
+        {
+            for (j = 0; j < M - 3; j += 4)
+            {
+                for (k = i; k < i + 4; k++)
+                {
+                    tmp = A[k][j + 0];
+                    tmp1 = A[k][j + 1];
+                    tmp2 = A[k][j + 2];
+                    tmp3 = A[k][j + 3];
+
+                    B[j][k] = tmp;
+                    B[j + 1][k] = tmp1;
+                    B[j + 2][k] = tmp2;
+                    B[j + 3][k] = tmp3;
+                }
+            }
+        }
+    }
+    else
+    {
+        for (i = 0; i < N; i += 16)
+        {
+            for (j = 0; j < M; j += 16)
+            {
+                for (k = i; k < i + 16 && k < N; k++)
+                {
+                    for (l = j; l < j + 16 && l < M; j++)
+                    {
+                        B[l][k] = A[k][l];
+                    }
+                }
             }
         }
     }
