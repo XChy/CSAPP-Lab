@@ -94,3 +94,6 @@ malloclab/memlib.o
 .gitignore
 malloclab/short1-bal.rep
 malloclab/short2-bal.rep
+malloclab/mdriver
+malloclab/mdriver.o
+malloclab/mm.o
