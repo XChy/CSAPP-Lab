@@ -62,14 +62,17 @@ team_t team = {
 #define ISALLOCATED(p) (*(size_t *)HEAD(p) & 0x1)
 #define ISEND(p) (GETSIZE(HEAD(p)) == 0)
 
-//#define _DEBUG
+// #define _DEBUG
 
 #ifdef _DEBUG
 #define debugf(format, ...) printf(format, ##__VA_ARGS__)
+#define printAll() printAllBlocks()
 #else
 #define debugf(format, ...)
+#define printAll()
 #endif
 
+#define MAXFREESIZE 1 <<
 /*
  * mm_init - initialize the malloc package.
  */
@@ -97,21 +100,21 @@ void merge(void *ptr)
         int totalsize = GETSIZE(HEAD(prev)) + GETSIZE(HEAD(next)) + GETSIZE(HEAD(ptr));
         PUT(HEAD(prev), PACK(totalsize, 0));
         PUT(FOOT(next), PACK(totalsize, 0));
-        printAllBlocks();
+        printAll();
     }
     else if (!ISALLOCATED(prev) && ISALLOCATED(next))
     {
         int totalsize = GETSIZE(HEAD(prev)) + GETSIZE(HEAD(ptr));
         PUT(HEAD(prev), PACK(totalsize, 0));
         PUT(FOOT(ptr), PACK(totalsize, 0));
-        printAllBlocks();
+        printAll();
     }
     else if (ISALLOCATED(prev) && !ISALLOCATED(next))
     {
         int totalsize = GETSIZE(HEAD(next)) + GETSIZE(HEAD(ptr));
         PUT(HEAD(ptr), PACK(totalsize, 0));
         PUT(FOOT(next), PACK(totalsize, 0));
-        printAllBlocks();
+        printAll();
     }
     debugf("No merge\n");
 }
@@ -198,7 +201,7 @@ void *mm_malloc(size_t size)
     if ((p = firstFit(newsize)))
     {
         debugf("Malloced pointer:%p\n", p);
-        printAllBlocks();
+        printAll();
         return p;
     }
 
@@ -238,6 +241,7 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
+    debugf("Realloc start\n");
     void *oldptr = ptr;
     void *newptr;
     size_t newsize = size + DSIZE;
@@ -246,10 +250,11 @@ void *mm_realloc(void *ptr, size_t size)
     newptr = mm_malloc(size);
     if (newptr == NULL)
         return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
+    copySize = GETSIZE(HEAD(oldptr)) - DSIZE;
     if (size < copySize)
         copySize = size;
     memcpy(newptr, oldptr, copySize);
     mm_free(oldptr);
+    debugf("Realloc end\n");
     return newptr;
 }
