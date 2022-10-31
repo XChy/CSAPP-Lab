@@ -5,7 +5,7 @@
 #define MAX_OBJECT_SIZE 102400
 
 #define MAX_COMMAND_SIZE 16
-#define MAX_HOSTNAME_SIZE 32
+#define MAX_HOSTNAME_SIZE 64
 #define MAX_PORT_SIZE 8
 #define MAX_PATH_SIZE 64
 #define MAX_VERSION_SIZE 16
@@ -26,6 +26,11 @@ typedef struct
     char version[MAX_VERSION_SIZE];
 } RequestLine;
 
+typedef struct
+{
+    char str[MAXLINE];
+} RequestHeader;
+
 // Close the file descriptor automatically return -1 if error
 int trans(int connfd);
 // return -1 if error
@@ -33,9 +38,9 @@ int readRequestLine(rio_t *rio, int connfd, char *result);
 // return -1 if error
 int parseRequestLine(char *buf, RequestLine *result);
 // return the number of headers
-int readRequestHeader(rio_t *rio, char **headers);
+int readRequestHeader(rio_t *rio, RequestHeader *headers);
 // return file descriptor of client
-int forwardToServer(RequestLine *line, char **header, int headerCount);
+int forwardToServer(RequestLine *line, RequestHeader *header, int headerCount);
 
 int main(int argc, char *argv[])
 {
@@ -73,7 +78,7 @@ int trans(int fromClientfd)
     rio_t rio;
     RequestLine requestLine;
     char requestStr[MAXLINE];
-    char headers[20][MAXLINE];
+    RequestHeader headers[20];
     rio_readinitb(&rio, fromClientfd); // init the rio reader
     int headerCount;
 
@@ -87,12 +92,22 @@ int trans(int fromClientfd)
         return -1;
     }
 
+    printf("Raw request line:%s", requestStr);
+    printf("Request line:%s %s:%s\n", requestLine.command, requestLine.hostname, requestLine.path);
+
     headerCount = readRequestHeader(&rio, headers);
+
+    for (size_t i = 0; i < headerCount; i++)
+    {
+        printf("Request header:%s", headers[i].str);
+    }
 
     // TODO:Read from cache
 
     // forward the request to the server,and get data as a client
+    printf("Try to connect host:%s port:%s", requestLine.hostname, requestLine.port);
     int toServerfd = forwardToServer(&requestLine, headers, headerCount);
+    printf("Connected to the server\n");
     Rio_readinitb(&rio, toServerfd);
 
     char buf[MAXLINE]; // For cache
@@ -124,6 +139,7 @@ int parseRequestLine(char *str, RequestLine *result)
         return -1;
     }
 
+    printf("Valid url:%s\n", url);
     strcpy(result->command, command);
     strcpy(result->version, version);
 
@@ -146,8 +162,12 @@ int parseRequestLine(char *str, RequestLine *result)
             result->port[p - portHead] = *p;
             p++;
         }
+        result->port[p - portHead] = '\0';
     }
-    result->port[p - portHead] = '\0';
+    else
+    {
+        result->port[p - portHead + 1] = '\0';
+    }
 
     // path and query
     char *pathHead = p + 1;
@@ -159,25 +179,33 @@ int parseRequestLine(char *str, RequestLine *result)
             result->port[p - pathHead] = *p;
             p++;
         }
+        result->port[p - pathHead] = '\0';
     }
-    result->port[p - pathHead] = '\0';
+    else
+    {
+        result->port[p - pathHead + 1] = '\0';
+    }
 
     return 0;
 }
 
-int readRequestHeader(rio_t *rio, char **headers)
+int readRequestHeader(rio_t *rio, RequestHeader *headers)
 {
     int i = 0;
-    while (Rio_readlineb(rio, headers[i], MAXLINE) == 0)
+    char buf[MAXLINE];
+    Rio_readlineb(rio, buf, MAXLINE);
+    while (strcmp(buf, "\r\n") != 0)
     {
+        strcpy(headers[i].str, buf);
+        Rio_readlineb(rio, buf, MAXLINE);
         i++;
     }
     return i;
 }
 
-int forwardToServer(RequestLine *line, char **header, int headerCount)
+int forwardToServer(RequestLine *line, RequestHeader *header, int headerCount)
 {
-    int clientfd = Open_clientfd(line->hostname, line->port);
+    int clientfd = Open_clientfd(line->hostname, NULL);
     char buf[MAXLINE];
     int lastPos = 0;
     rio_t rio;
@@ -187,7 +215,7 @@ int forwardToServer(RequestLine *line, char **header, int headerCount)
     lastPos += sprintf(buf + lastPos, "%s %s %s\r\n", line->command, line->path, http_version);
     for (size_t i = 0; i < headerCount; i++)
     {
-        lastPos += sprintf(buf + lastPos, "%s", header[i]);
+        lastPos += sprintf(buf + lastPos, "%s", header[i].str);
     }
     sprintf(buf + lastPos, "\r\n");
     Rio_writen(clientfd, buf, MAXLINE);
