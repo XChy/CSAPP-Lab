@@ -127,3 +127,4 @@ proxylab/.proxy/tiny
 proxylab/.proxy/csapp.c
 .gitignore
 proxylab/.proxy/tiny.c
+proxylab/.noproxy/home.html

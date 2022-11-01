@@ -10,6 +10,8 @@
 #define MAX_PATH_SIZE 64
 #define MAX_VERSION_SIZE 16
 
+#define MAX_OBJECT_COUNT 10
+
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
 static const char *connection_hdr = "Connection: close\r\n";
@@ -31,6 +33,25 @@ typedef struct
     char str[MAXLINE];
 } RequestHeader;
 
+typedef struct
+{
+    char hostname[MAX_HOSTNAME_SIZE];
+    char port[MAX_PORT_SIZE];
+    char path[MAX_PATH_SIZE];
+    char data[MAX_OBJECT_SIZE];
+    int size;
+    clock_t time; // represent free node if time = 0
+} WebObjectNode;
+
+struct
+{
+    WebObjectNode nodes[MAX_OBJECT_COUNT];
+    int size;
+} cache;
+
+sem_t cacheWriterLock;
+sem_t cacheReaderLock;
+
 // Close the file descriptor automatically return -1 if error
 int trans(int connfd);
 // return -1 if error
@@ -41,6 +62,12 @@ int parseRequestLine(char *buf, RequestLine *result);
 int readRequestHeader(rio_t *rio, RequestHeader *headers);
 // return file descriptor of client
 int forwardToServer(RequestLine *line, RequestHeader *header, int headerCount);
+// return 0 if there is no cache for the website, else return the size of cached object
+int readCache(RequestLine *line, char *buf);
+// return 0 if there has no cache for the website, else return 1
+int writeCache(RequestLine *line, char *buf, int size);
+
+void cache_init();
 
 int main(int argc, char *argv[])
 {
@@ -48,6 +75,8 @@ int main(int argc, char *argv[])
     char hostname[MAXLINE], port[MAXLINE];
     socklen_t clientlen;
     struct sockaddr_storage clientaddr;
+
+    cache_init();
 
     /* Check command line args */
     if (argc != 2)
@@ -93,7 +122,7 @@ int trans(int fromClientfd)
     }
 
     printf("Raw request line:%s", requestStr);
-    printf("Request line:%s %s:%s\n", requestLine.command, requestLine.hostname, requestLine.port);
+    printf("Request line:%s %s:%s%s\n", requestLine.command, requestLine.hostname, requestLine.port, requestLine.path);
 
     headerCount = readRequestHeader(&rio, headers);
 
@@ -102,23 +131,35 @@ int trans(int fromClientfd)
         printf("Request header:%s", headers[i].str);
     }
 
+    char buf[MAX_OBJECT_SIZE]; // For cache
     // TODO:Read from cache
-
-    // forward the request to the server,and get data as a client
-    printf("Try to connect host:%s port:%s\n", requestLine.hostname, requestLine.port);
-    int toServerfd = forwardToServer(&requestLine, headers, headerCount);
-    printf("Connected to the server\n");
-
-    Rio_readinitb(&rio, toServerfd); // change rio to server
-    char buf[MAXLINE];               // For cache
-
-    int n;
-    while (n = rio_readlineb(&rio, buf, MAXLINE)) // Read from server
+    int cachedSize;
+    if (cachedSize = readCache(&requestLine, buf)) // If cached
     {
-        Rio_writen(fromClientfd, buf, n); // Write to client
+        printf("Cached %s\n", requestLine.hostname);
+        Rio_writen(fromClientfd, buf, cachedSize);
+    }
+    else // If not cached
+    {
+        // forward the request to the server,and get data as a client
+        printf("Try to connect host:%s port:%s\n", requestLine.hostname, requestLine.port);
+        int toServerfd = forwardToServer(&requestLine, headers, headerCount);
+        printf("Connected to the server\n");
+
+        Rio_readinitb(&rio, toServerfd); // change rio to server
+
+        int n;
+        char *bufEnd = buf;
+
+        while (n = rio_readlineb(&rio, bufEnd, MAXLINE)) // Read from server
+        {
+            bufEnd += n;
+        }
+        writeCache(&requestLine, buf, bufEnd - buf);
+        Rio_writen(fromClientfd, buf, bufEnd - buf); // Write to client
+        Close(toServerfd);
     }
 
-    Close(toServerfd);
     Close(fromClientfd);
     return 0;
 }
@@ -227,4 +268,95 @@ int forwardToServer(RequestLine *line, RequestHeader *header, int headerCount)
     Rio_writen(clientfd, buf, MAXLINE);
 
     return clientfd;
+}
+
+void cache_init()
+{
+    sem_init(&cacheReaderLock, 0, 1);
+    sem_init(&cacheWriterLock, 0, 1);
+    for (size_t i = 0; i < MAX_OBJECT_COUNT; i++)
+    {
+        cache.nodes[i].time = 0; // represent free node
+        cache.nodes[i].data[0] = '\0';
+    }
+
+    cache.size = 0;
+}
+
+int readCount = 0;
+
+int readCache(RequestLine *line, char *buf)
+{
+    P(&cacheReaderLock);
+    readCount++;
+    if (readCount == 1)
+    {
+        P(&cacheWriterLock);
+    }
+    V(&cacheReaderLock);
+
+    int iscached = 0;
+    WebObjectNode *node;
+    for (size_t i = 0; i < cache.size; i++)
+    {
+        if (strcmp(line->hostname, cache.nodes[i].hostname) == 0)
+        {
+            if (strcmp(line->port, cache.nodes[i].port) == 0)
+            {
+                if (strcmp(line->path, cache.nodes[i].path) == 0)
+                {
+                    iscached = cache.nodes->size;
+                    node = &cache.nodes[i];
+                    memcpy(buf, cache.nodes[i].data, cache.nodes[i].size);
+                    break;
+                }
+            }
+        }
+    }
+
+    P(&cacheReaderLock);
+    if (iscached)
+    {
+        node->time = clock(); // update the time
+    }
+    readCount--;
+    if (readCount == 0)
+    {
+        V(&cacheWriterLock);
+    }
+    V(&cacheReaderLock);
+
+    return iscached;
+}
+
+int writeCache(RequestLine *line, char *buf, int size)
+{
+    P(&cacheWriterLock);
+    printf("Write to cache:request_size %d cache_size %d\n", size, cache.size);
+    // find the last-read one
+    clock_t earliest = __LONG_MAX__;
+    int index = 0;
+    for (size_t i = 0; i < MAX_OBJECT_COUNT; i++)
+    {
+        if (cache.nodes[i].time == 0) // Free node
+        {
+            printf("Find free block:%d\n", i);
+            index = i;
+            cache.size++;
+            break;
+        }
+        else if (cache.nodes[i].time < earliest)
+        {
+            earliest = cache.nodes[i].time;
+            index = i;
+        }
+    }
+    strcpy(cache.nodes[index].hostname, line->hostname);
+    strcpy(cache.nodes[index].port, line->port);
+    strcpy(cache.nodes[index].path, line->path);
+    memcpy(cache.nodes[index].data, buf, size);
+    cache.nodes[index].time = clock();
+    cache.nodes[index].size = size;
+
+    V(&cacheWriterLock);
 }
