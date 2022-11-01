@@ -66,11 +66,10 @@ int main(int argc, char *argv[])
                     port, MAXLINE, 0);
         printf("Accepted connection from (%s, %s)\n", hostname, port);
 
-        trans(connfd); // TODO:update it to concurrency
-        Close(connfd);
+        pthread_t tid;
+        Pthread_create(&tid, NULL, trans, connfd);
+        Pthread_detach(tid);
     }
-
-    printf("%s", user_agent_hdr);
     return 0;
 }
 
@@ -109,16 +108,18 @@ int trans(int fromClientfd)
     printf("Try to connect host:%s port:%s\n", requestLine.hostname, requestLine.port);
     int toServerfd = forwardToServer(&requestLine, headers, headerCount);
     printf("Connected to the server\n");
-    Rio_readinitb(&rio, toServerfd);
 
-    char buf[MAXLINE]; // For cache
+    Rio_readinitb(&rio, toServerfd); // change rio to server
+    char buf[MAXLINE];               // For cache
+
     int n;
-    while (n = Rio_readlineb(&rio, buf, MAXLINE))
+    while (n = rio_readlineb(&rio, buf, MAXLINE)) // Read from server
     {
-        Rio_writen(fromClientfd, buf, n);
+        Rio_writen(fromClientfd, buf, n); // Write to client
     }
 
     Close(toServerfd);
+    Close(fromClientfd);
     return 0;
 }
 

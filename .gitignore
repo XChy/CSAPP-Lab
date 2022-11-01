@@ -124,3 +124,6 @@ proxylab/tiny/cgi-bin/adder.c
 proxylab/tiny/cgi-bin/Makefile
 .vscode/tasks.json
 proxylab/.proxy/tiny
+proxylab/.proxy/csapp.c
+.gitignore
+proxylab/.proxy/tiny.c
