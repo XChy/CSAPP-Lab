@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
         printf("Accepted connection from (%s, %s)\n", hostname, port);
 
         trans(connfd); // TODO:update it to concurrency
+        Close(connfd);
     }
 
     printf("%s", user_agent_hdr);
@@ -93,7 +94,7 @@ int trans(int fromClientfd)
     }
 
     printf("Raw request line:%s", requestStr);
-    printf("Request line:%s %s:%s\n", requestLine.command, requestLine.hostname, requestLine.path);
+    printf("Request line:%s %s:%s\n", requestLine.command, requestLine.hostname, requestLine.port);
 
     headerCount = readRequestHeader(&rio, headers);
 
@@ -105,7 +106,7 @@ int trans(int fromClientfd)
     // TODO:Read from cache
 
     // forward the request to the server,and get data as a client
-    printf("Try to connect host:%s port:%s", requestLine.hostname, requestLine.port);
+    printf("Try to connect host:%s port:%s\n", requestLine.hostname, requestLine.port);
     int toServerfd = forwardToServer(&requestLine, headers, headerCount);
     printf("Connected to the server\n");
     Rio_readinitb(&rio, toServerfd);
@@ -117,7 +118,7 @@ int trans(int fromClientfd)
         Rio_writen(fromClientfd, buf, n);
     }
 
-    Close(fromClientfd);
+    Close(toServerfd);
     return 0;
 }
 
@@ -150,40 +151,40 @@ int parseRequestLine(char *str, RequestLine *result)
         result->hostname[p - url] = *p;
         p++;
     }
-    result->port[p - url] = '\0';
+    result->hostname[p - url] = '\0';
 
     // port
-    char *portHead = p + 1;
+    char *portHead = p;
     if (*p == ':')
     {
         p++;
         while (*p != '\0' && *p != '/')
         {
-            result->port[p - portHead] = *p;
+            result->port[p - portHead - 1] = *p;
             p++;
         }
-        result->port[p - portHead] = '\0';
+        result->port[p - portHead - 1] = '\0';
     }
     else
     {
-        result->port[p - portHead + 1] = '\0';
+        result->port[p - portHead] = '\0';
+    }
+
+    if (strlen(result->port) == 0)
+    {
+        strcpy(result->port, "80");
     }
 
     // path and query
-    char *pathHead = p + 1;
+    char *pathHead = p;
     if (*p == '/')
     {
-        p++;
         while (*p != '\0')
         {
-            result->port[p - pathHead] = *p;
+            result->path[p - pathHead] = *p;
             p++;
         }
-        result->port[p - pathHead] = '\0';
-    }
-    else
-    {
-        result->port[p - pathHead + 1] = '\0';
+        result->path[p - pathHead] = '\0';
     }
 
     return 0;
@@ -205,7 +206,11 @@ int readRequestHeader(rio_t *rio, RequestHeader *headers)
 
 int forwardToServer(RequestLine *line, RequestHeader *header, int headerCount)
 {
-    int clientfd = Open_clientfd(line->hostname, NULL);
+    int clientfd = Open_clientfd(line->hostname, line->port);
+    if (clientfd < 0)
+    {
+        return -1;
+    }
     char buf[MAXLINE];
     int lastPos = 0;
     rio_t rio;
